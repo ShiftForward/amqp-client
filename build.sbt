@@ -8,7 +8,7 @@ scalaVersion := "2.12.10"
 
 crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1")
 
-scalacOptions ++= Seq("-feature", "-language:postfixOps")
+scalacOptions ++= Seq("-feature", "-language:postfixOps", "-deprecation")
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 

@@ -1,6 +1,6 @@
 package com.github.sstone.amqp
 
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.junit.runner.RunWith
 import concurrent.{Await, Future}
 import concurrent.duration._

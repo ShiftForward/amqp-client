@@ -1,6 +1,6 @@
 package com.github.sstone.amqp
 
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.junit.runner.RunWith
 import akka.testkit.TestProbe
 import akka.actor.{Props, Actor, DeadLetter}
@@ -97,7 +97,7 @@ class ChannelOwnerSpec extends ChannelSpec {
 
     channelOwner ! DeclareQueue(QueueParameters("NO_SUCH_QUEUE", passive = true))
     expectMsgClass(classOf[Amqp.Error])
-    deadletterProbe.expectNoMsg(1 second)
+    deadletterProbe.expectNoMessage(1 second)
   }
 
   "return requests when not connected" in {
@@ -128,7 +128,7 @@ class ChannelOwnerSpec extends ChannelSpec {
   "Multiple ChannelOwners" should {
     "each transition from Disconnected to Connected when they receive a channel" in {
       val concurrent = 10
-      val actors = for (i <- 1 until concurrent) yield ConnectionOwner.createChildActor(conn, ChannelOwner.props(), name = Some(i + "-instance"))
+      val actors = for (i <- 1 until concurrent) yield ConnectionOwner.createChildActor(conn, ChannelOwner.props(), name = Some(s"$i-instance"))
       val latch = waitForConnection(system, actors: _*)
       latch.await(10000, TimeUnit.MILLISECONDS)
       latch.getCount should be(0)

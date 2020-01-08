@@ -1,6 +1,6 @@
 package com.github.sstone.amqp
 
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.junit.runner.RunWith
 import akka.testkit.TestProbe
 import com.github.sstone.amqp.Amqp._
@@ -39,16 +39,16 @@ object Bug30Spec {
         // consumer crashes
         context.system.scheduler.scheduleOnce(500 milliseconds, replyTo, Ack(envelope.getDeliveryTag))
         counter = counter + 1
-        if (counter == 10) self ! 'crash
+        if (counter == 10) self ! "crash"
         if (counter == 20) {
           // ok, we're done: the consumer's channel crashed, everything (channel, rabbitmq consumer) was re-created properly
           // and we received 10 additional messages
-          tellMeWhenYoureDone ! 'done
+          tellMeWhenYoureDone ! "done"
           context.stop(self)
         }
       }
 
-      case 'crash => {
+      case "crash" => {
         // ask the consumer to "passively declare" an exchange (i.e check that the exchange exists) that does not exist
         // this will crash the channel owned by the consumer and force it to create a new one
         consumer ! Amqp.DeclareExchange(ExchangeParameters(name = "I don't exist", passive = false, exchangeType = "foo"))
@@ -68,7 +68,7 @@ class Bug30Spec extends ChannelSpec {
     "redefine consumers when a channel fails" in {
       val probe = TestProbe()
       val listener = system.actorOf(Props(new Bug30Spec.Listener(conn, probe.ref)), "listener")
-      probe.expectMsg(15 seconds, 'done)
+      probe.expectMsg(15 seconds, "done")
     }
   }
 }

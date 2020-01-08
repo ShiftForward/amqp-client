@@ -1,7 +1,7 @@
 package com.github.sstone.amqp
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import akka.testkit.TestProbe
 import akka.actor.Props
 import concurrent.duration._

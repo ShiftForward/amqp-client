@@ -47,7 +47,7 @@ class Consumer(listener: Option[ActorRef],
     super.onChannel(channel, forwarder)
     val destination = listener getOrElse self
     consumer = Some(new DefaultConsumer(channel) {
-      override def handleDelivery(consumerTag: String, envelope: Envelope, properties: BasicProperties, body: Array[Byte]) {
+      override def handleDelivery(consumerTag: String, envelope: Envelope, properties: BasicProperties, body: Array[Byte]): Unit = {
         destination.tell(Delivery(consumerTag, envelope, properties, body), sender = forwarder)
       }
 

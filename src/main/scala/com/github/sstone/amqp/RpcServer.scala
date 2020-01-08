@@ -63,7 +63,7 @@ object RpcServer {
 class RpcServer(processor: RpcServer.IProcessor, init: Seq[Request] = Seq.empty[Request], channelParams: Option[ChannelParameters] = None)(implicit ctx: ExecutionContext = ExecutionContext.Implicits.global) extends Consumer(listener = None, autoack = false, init = init, channelParams = channelParams) {
   import RpcServer._
 
-  private def sendResponse(result: ProcessResult, properties: BasicProperties, channel: Channel) {
+  private def sendResponse(result: ProcessResult, properties: BasicProperties, channel: Channel): Unit = {
     result match {
       // send a reply only if processor return something *and* replyTo is set
       case ProcessResult(Some(data), customProperties) if (properties.getReplyTo != null) => {
