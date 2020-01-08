@@ -4,9 +4,9 @@ name := "amqp-client"
 
 organization := "eu.shiftforward"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.10"
 
-crossScalaVersions := Seq("2.11.12", "2.12.8")
+crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1")
 
 scalacOptions ++= Seq("-feature", "-language:postfixOps")
 

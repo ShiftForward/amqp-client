@@ -1,8 +1,8 @@
 package com.github.sstone.amqp
 
-import collection.JavaConversions._
+import convert.Converters._
 
-import com.rabbitmq.client.AMQP.{BasicProperties, Queue}
+import com.rabbitmq.client.AMQP.BasicProperties
 import com.rabbitmq.client.{Delivery => _, _}
 import akka.actor._
 import com.github.sstone.amqp.Amqp._
@@ -85,11 +85,11 @@ object ChannelOwner {
       }
       case request@QueueBind(queue, exchange, routingKeys, args) => {
         log.debug("binding queue {} to keys {} on exchange {}", queue, routingKeys.mkString(", "), exchange)
-        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.queueBind(queue, exchange, rk, args)))
+        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.queueBind(queue, exchange, rk, args.asJava)))
       }
       case request@QueueUnbind(queue, exchange, routingKey, args) => {
         log.debug("unbinding queue {} to key {} on exchange {}", queue, routingKey, exchange)
-        sender ! withChannel(channel, request)(c => c.queueUnbind(queue, exchange, routingKey, args))
+        sender ! withChannel(channel, request)(c => c.queueUnbind(queue, exchange, routingKey, args.asJava))
       }
       case request@Get(queue, autoAck) => {
         log.debug("getting from queue {} autoAck {}", queue, autoAck)
@@ -111,7 +111,7 @@ object ChannelOwner {
           }
         })
       }
-      case request@ConfirmSelect => {
+      case request:ConfirmSelect.type => {
         sender ! withChannel(channel, request)(c => c.confirmSelect())
       }
       case request@AddConfirmListener(listener) => {
