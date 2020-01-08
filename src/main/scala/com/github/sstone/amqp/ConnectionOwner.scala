@@ -42,7 +42,7 @@ object ConnectionOwner {
    * @return an amqp uri
    */
   def toUri(cf: ConnectionFactory): String = {
-    "amqp://%s:%s@%s:%d/%s".format(cf.getUsername, cf.getPassword, cf.getHost, cf.getPort, cf.getVirtualHost)
+    "amqp://%s:**REDACTED**@%s:%d/%s".format(cf.getUsername, cf.getHost, cf.getPort, cf.getVirtualHost)
   }
 
   def buildConnFactory(host: String = "localhost", port: Int = 5672, vhost: String = "/", user: String = "guest", password: String = "guest"): ConnectionFactory = {
