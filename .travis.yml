@@ -1,8 +1,9 @@
 language: scala
+dist: trusty
 scala:
   - 2.11.12
   - 2.12.5
 jdk:
-  - oraclejdk8
+  - openjdk8
 services:
   - rabbitmq
