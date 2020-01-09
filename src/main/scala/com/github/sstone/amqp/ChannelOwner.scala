@@ -83,6 +83,10 @@ object ChannelOwner {
         log.debug("deleting queue {} ifUnused {} ifEmpty {}", queue, ifUnused, ifEmpty)
         sender ! withChannel(channel, request)(c => c.queueDelete(queue, ifUnused, ifEmpty))
       }
+      case request@ExchangeBind(destination, source, routingKeys, args) => {
+        log.debug("binding exchange {} to keys {} on exchange {}", destination, routingKeys.mkString(", "), source)
+        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.exchangeBind(destination, source, rk, args.asJava)))
+      }
       case request@QueueBind(queue, exchange, routingKeys, args) => {
         log.debug("binding queue {} to keys {} on exchange {}", queue, routingKeys.mkString(", "), exchange)
         sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.queueBind(queue, exchange, rk, args.asJava)))

@@ -1,9 +1,9 @@
 package com.github.sstone.amqp
 
 import convert.Converters._
-import com.rabbitmq.client.AMQP.BasicProperties
-import com.rabbitmq.client.{AMQP, ShutdownSignalException, Channel, Envelope}
-import akka.actor.{Actor, Props, ActorRef, ActorRefFactory}
+import com.rabbitmq.client.AMQP.{BasicProperties, Exchange}
+import com.rabbitmq.client.{AMQP, Channel, Envelope, ShutdownSignalException}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import java.util.concurrent.CountDownLatch
 
 object Amqp {
@@ -50,7 +50,7 @@ object Amqp {
    * @param e exchange parameters
    * @return a com.rabbitmq.client.AMQP.Exchange.DeclareOk object
    */
-  def declareExchange(channel: Channel, e: ExchangeParameters) = {
+  def declareExchange(channel: Channel, e: ExchangeParameters): Exchange.DeclareOk = {
     if (e.passive)
       channel.exchangeDeclarePassive(e.name)
     else
@@ -102,6 +102,8 @@ object Amqp {
   case class DeclareExchange(exchange: ExchangeParameters) extends Request
 
   case class DeleteExchange(name: String, ifUnused: Boolean = false) extends Request
+
+  case class ExchangeBind(destination: String, source: String, routingKeys: Set[String], args: Map[String, AnyRef] = Map.empty) extends Request
 
   case class QueueBind(queue: String, exchange: String, routingKeys: Set[String], args: Map[String, AnyRef] = Map.empty) extends Request
 
