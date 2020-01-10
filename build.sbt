@@ -10,7 +10,7 @@ crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1")
 
 scalacOptions ++= Seq("-feature", "-language:postfixOps", "-deprecation")
 
-resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+resolvers += "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/"
 
 libraryDependencies ++= {
   val akkaVersion = "2.5.27"
@@ -39,7 +39,7 @@ publishMavenStyle := true
 publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
-licenses := Seq("MIT License" -> url("http://www.opensource.org/licenses/mit-license.php"))
+licenses := Seq("MIT License" -> url("https://www.opensource.org/licenses/mit-license.php"))
 homepage := Some(url("https://github.com/ShiftForward/amqp-client"))
 scmInfo := Some(
   ScmInfo(
