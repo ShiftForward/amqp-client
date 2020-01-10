@@ -10,6 +10,7 @@ import scala.concurrent.Await
 import concurrent.duration._
 import java.util.concurrent.ExecutorService
 import scala.util.{Failure, Success, Try}
+
 object ConnectionOwner {
 
   sealed trait State
