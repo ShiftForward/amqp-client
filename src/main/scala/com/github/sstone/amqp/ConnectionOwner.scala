@@ -43,6 +43,10 @@ object ConnectionOwner {
    * @return an amqp uri
    */
   def toUri(cf: ConnectionFactory): String = {
+    "amqp://%s:%s@%s:%d/%s".format(cf.getUsername, cf.getPassword, cf.getHost, cf.getPort, cf.getVirtualHost)
+  }
+
+  private def toRedactedUri(cf: ConnectionFactory): String = {
     "amqp://%s:**REDACTED**@%s:%d/%s".format(cf.getUsername, cf.getHost, cf.getPort, cf.getVirtualHost)
   }
 
@@ -132,10 +136,10 @@ class ConnectionOwner(connFactory: ConnectionFactory,
      * connect to the broker
      */
     case "connect" => {
-      log.debug(s"trying to connect ${toUri(connFactory)}")
+      log.debug(s"trying to connect ${toRedactedUri(connFactory)}")
       Try(createConnection) match {
         case Success(conn) => {
-          log.info(s"connected to ${toUri(connFactory)}")
+          log.info(s"connected to ${toRedactedUri(connFactory)}")
           statusListeners.map(a => a ! Connected)
           connection = Some(conn)
           context.children.foreach(_ ! conn.createChannel())
