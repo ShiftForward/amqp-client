@@ -1,10 +1,10 @@
 package com.github.sstone.amqp
 
-import scala.collection.JavaConverters._
+import convert.Converters._
 
 import org.scalatest.{Matchers, WordSpecLike}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.actor.ActorSystem
 import akka.pattern.gracefulStop

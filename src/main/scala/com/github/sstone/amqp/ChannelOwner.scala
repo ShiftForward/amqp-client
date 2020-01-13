@@ -1,8 +1,8 @@
 package com.github.sstone.amqp
 
-import collection.JavaConversions._
+import convert.Converters._
 
-import com.rabbitmq.client.AMQP.{BasicProperties, Queue}
+import com.rabbitmq.client.AMQP.BasicProperties
 import com.rabbitmq.client.{Delivery => _, _}
 import akka.actor._
 import com.github.sstone.amqp.Amqp._
@@ -44,7 +44,7 @@ object ChannelOwner {
       }
       case request@AddReturnListener(listener) => {
         sender ! withChannel(channel, request)(c => c.addReturnListener(new ReturnListener {
-          def handleReturn(replyCode: Int, replyText: String, exchange: String, routingKey: String, properties: BasicProperties, body: Array[Byte]) {
+          def handleReturn(replyCode: Int, replyText: String, exchange: String, routingKey: String, properties: BasicProperties, body: Array[Byte]): Unit = {
             listener ! ReturnedMessage(replyCode, replyText, exchange, routingKey, properties, body)
           }
         }))
@@ -83,13 +83,17 @@ object ChannelOwner {
         log.debug("deleting queue {} ifUnused {} ifEmpty {}", queue, ifUnused, ifEmpty)
         sender ! withChannel(channel, request)(c => c.queueDelete(queue, ifUnused, ifEmpty))
       }
+      case request@ExchangeBind(destination, source, routingKeys, args) => {
+        log.debug("binding exchange {} to keys {} on exchange {}", destination, routingKeys.mkString(", "), source)
+        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.exchangeBind(destination, source, rk, args.asJava)))
+      }
       case request@QueueBind(queue, exchange, routingKeys, args) => {
         log.debug("binding queue {} to keys {} on exchange {}", queue, routingKeys.mkString(", "), exchange)
-        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.queueBind(queue, exchange, rk, args)))
+        sender ! withChannel(channel, request)(c => routingKeys.map(rk => c.queueBind(queue, exchange, rk, args.asJava)))
       }
       case request@QueueUnbind(queue, exchange, routingKey, args) => {
         log.debug("unbinding queue {} to key {} on exchange {}", queue, routingKey, exchange)
-        sender ! withChannel(channel, request)(c => c.queueUnbind(queue, exchange, routingKey, args))
+        sender ! withChannel(channel, request)(c => c.queueUnbind(queue, exchange, routingKey, args.asJava))
       }
       case request@Get(queue, autoAck) => {
         log.debug("getting from queue {} autoAck {}", queue, autoAck)
@@ -106,12 +110,12 @@ object ChannelOwner {
       case request@CreateConsumer(listener) => {
         log.debug(s"creating new consumer for listener $listener")
         sender ! withChannel(channel, request)(c => new DefaultConsumer(channel) {
-          override def handleDelivery(consumerTag: String, envelope: Envelope, properties: BasicProperties, body: Array[Byte]) {
+          override def handleDelivery(consumerTag: String, envelope: Envelope, properties: BasicProperties, body: Array[Byte]): Unit = {
             listener ! Delivery(consumerTag, envelope, properties, body)
           }
         })
       }
-      case request@ConfirmSelect => {
+      case request:ConfirmSelect.type => {
         sender ! withChannel(channel, request)(c => c.confirmSelect())
       }
       case request@AddConfirmListener(listener) => {
@@ -220,7 +224,7 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
     }
   }
 
-  private def addStatusListener(listener: ActorRef) {
+  private def addStatusListener(listener: ActorRef): Unit = {
     if (!statusListeners.contains(listener)) {
       context.watch(listener)
       statusListeners.add(listener)

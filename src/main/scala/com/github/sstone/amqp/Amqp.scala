@@ -1,10 +1,9 @@
 package com.github.sstone.amqp
 
-import collection.JavaConversions._
-import com.rabbitmq.client.AMQP.BasicProperties
-import com.rabbitmq.client.{AMQP, ShutdownSignalException, Channel, Envelope}
-import akka.actor.{Actor, Props, ActorRef, ActorRefFactory}
-import akka.actor.FSM.{SubscribeTransitionCallBack, CurrentState, Transition}
+import convert.Converters._
+import com.rabbitmq.client.AMQP.{BasicProperties, Exchange}
+import com.rabbitmq.client.{AMQP, Channel, Envelope, ShutdownSignalException}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import java.util.concurrent.CountDownLatch
 
 object Amqp {
@@ -30,7 +29,7 @@ object Amqp {
     if (q.passive)
       channel.queueDeclarePassive(q.name)
     else
-      channel.queueDeclare(q.name, q.durable, q.exclusive, q.autodelete, q.args)
+      channel.queueDeclare(q.name, q.durable, q.exclusive, q.autodelete, q.args.asJava)
   }
 
   /**
@@ -40,9 +39,10 @@ object Amqp {
    * @param exchangeType exchange type: "direct", "fanout", "topic", "headers"
    * @param durable if true, the exchange will  be durable i.e. will survive a broker restart
    * @param autodelete if true, the exchange will be destroyed when it is no longer used
+   * @param internal if true, the exchange cannot be directly published to by a client, e.g. for exchange-to-exchange bindings or dead letters
    * @param args additional arguments
    */
-  case class ExchangeParameters(name: String, passive: Boolean, exchangeType: String, durable: Boolean = false, autodelete: Boolean = false, args: Map[String, AnyRef] = Map.empty)
+  case class ExchangeParameters(name: String, passive: Boolean, exchangeType: String, durable: Boolean = false, autodelete: Boolean = false, internal: Boolean = false, args: Map[String, AnyRef] = Map.empty)
 
   /**
    * declare an exchange
@@ -50,11 +50,11 @@ object Amqp {
    * @param e exchange parameters
    * @return a com.rabbitmq.client.AMQP.Exchange.DeclareOk object
    */
-  def declareExchange(channel: Channel, e: ExchangeParameters) = {
+  def declareExchange(channel: Channel, e: ExchangeParameters): Exchange.DeclareOk = {
     if (e.passive)
       channel.exchangeDeclarePassive(e.name)
     else
-      channel.exchangeDeclare(e.name, e.exchangeType, e.durable, e.autodelete, e.args)
+      channel.exchangeDeclare(e.name, e.exchangeType, e.durable, e.autodelete, e.internal, e.args.asJava)
   }
 
   object StandardExchanges {
@@ -102,6 +102,8 @@ object Amqp {
   case class DeclareExchange(exchange: ExchangeParameters) extends Request
 
   case class DeleteExchange(name: String, ifUnused: Boolean = false) extends Request
+
+  case class ExchangeBind(destination: String, source: String, routingKeys: Set[String], args: Map[String, AnyRef] = Map.empty) extends Request
 
   case class QueueBind(queue: String, exchange: String, routingKeys: Set[String], args: Map[String, AnyRef] = Map.empty) extends Request
 

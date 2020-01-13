@@ -6,11 +6,10 @@ import akka.event.LoggingReceive
 import akka.pattern.ask
 import akka.util.Timeout
 import com.rabbitmq.client.{AddressResolver, Connection, ConnectionFactory, ShutdownListener, ShutdownSignalException}
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 import concurrent.duration._
 import java.util.concurrent.ExecutorService
 import scala.util.{Failure, Success, Try}
-import collection.JavaConversions._
 
 object ConnectionOwner {
 
@@ -45,6 +44,10 @@ object ConnectionOwner {
    */
   def toUri(cf: ConnectionFactory): String = {
     "amqp://%s:%s@%s:%d/%s".format(cf.getUsername, cf.getPassword, cf.getHost, cf.getPort, cf.getVirtualHost)
+  }
+
+  private def toRedactedUri(cf: ConnectionFactory): String = {
+    "amqp://%s:**REDACTED**@%s:%d/%s".format(cf.getUsername, cf.getHost, cf.getPort, cf.getVirtualHost)
   }
 
   def buildConnFactory(host: String = "localhost", port: Int = 5672, vhost: String = "/", user: String = "guest", password: String = "guest"): ConnectionFactory = {
@@ -83,7 +86,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
   var connection: Option[Connection] = None
   val statusListeners = collection.mutable.HashSet.empty[ActorRef]
 
-  val reconnectTimer = context.system.scheduler.schedule(10 milliseconds, reconnectionDelay, self, 'connect)
+  val reconnectTimer = context.system.scheduler.schedule(10 milliseconds, reconnectionDelay, self, "connect")
 
   override def postStop = connection.map(c => Try(c.close()))
 
@@ -117,7 +120,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
       case (Some(ex), Some(addr)) => connFactory.newConnection(ex, addr)
     }
     conn.addShutdownListener(new ShutdownListener {
-      def shutdownCompleted(cause: ShutdownSignalException) {
+      def shutdownCompleted(cause: ShutdownSignalException): Unit = {
         self ! Shutdown(cause)
         statusListeners.map(a => a ! Disconnected)
        }
@@ -132,11 +135,11 @@ class ConnectionOwner(connFactory: ConnectionFactory,
     /**
      * connect to the broker
      */
-    case 'connect => {
-      log.debug(s"trying to connect ${toUri(connFactory)}")
+    case "connect" => {
+      log.debug(s"trying to connect ${toRedactedUri(connFactory)}")
       Try(createConnection) match {
         case Success(conn) => {
-          log.info(s"connected to ${toUri(connFactory)}")
+          log.info(s"connected to ${toRedactedUri(connFactory)}")
           statusListeners.map(a => a ! Connected)
           connection = Some(conn)
           context.children.foreach(_ ! conn.createChannel())
@@ -164,7 +167,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
   }
 
   def connected(conn: Connection): Receive = LoggingReceive {
-    case 'connect => ()
+    case "connect" => ()
     case Amqp.Ok(_, _) => ()
     case Abort(code, message) => {
       conn.abort(code, message)
@@ -192,12 +195,12 @@ class ConnectionOwner(connFactory: ConnectionFactory,
       log.error(cause, "connection lost")
       connection = None
       context.children.foreach(_ ! Shutdown(cause))
-      self ! 'connect
+      self ! "connect"
       context.become(disconnected)
     }
   }
 
-  private def addStatusListener(listener: ActorRef) {
+  private def addStatusListener(listener: ActorRef): Unit = {
     if (!statusListeners.contains(listener)) {
       context.watch(listener)
       statusListeners.add(listener)

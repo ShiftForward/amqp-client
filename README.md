@@ -154,6 +154,10 @@ Here, queues and bindings will be gone if the connection is lost and restored:
   val conn = system.actorOf(ConnectionOwner.props(connFactory, 1 second))
 
   // create an actor that will receive AMQP deliveries
+  // NB: the `Ack` message MUST be sent to the `sender` of the `Delivery`
+  // and NOT the `ChannelOwner` directly or else an ack may go
+  // to the wrong channel after a disconnect/reconnect cycle,
+  // resulting in a channel exception and/or potentially lost or mis-acked messages
   val listener = system.actorOf(Props(new Actor {
     def receive = {
       case Delivery(consumerTag, envelope, properties, body) => {
