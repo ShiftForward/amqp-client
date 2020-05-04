@@ -139,11 +139,19 @@ class ConnectionOwner(connFactory: ConnectionFactory,
       log.debug(s"trying to connect ${toRedactedUri(connFactory)}")
       Try(createConnection) match {
         case Success(conn) => {
-          log.info(s"connected to ${toRedactedUri(connFactory)}")
-          statusListeners.foreach(_ ! Connected)
-          connection = Some(conn)
-          context.children.foreach(_ ! conn.createChannel())
-          context.become(connected(conn, context.children.toSet))
+          val channelAssignment = context.children.map(_ -> Try(conn.createChannel()))
+          // Only consider ourselves connected if we can create a channel for all of our children.
+          if (channelAssignment.forall(_._2.isSuccess)) {
+            log.info(s"connected to ${toRedactedUri(connFactory)}")
+            statusListeners.foreach(_ ! Connected)
+            connection = Some(conn)
+            // We know all Trys were successful, so it's safe to .get here.
+            channelAssignment.foreach { case (children, channel) => children ! channel.get }
+            context.become(connected(conn))
+          } else {
+            channelAssignment.foreach(_._2.map(_.close()))
+            conn.close()
+          }
         }
         case Failure(cause) => {
           log.error(cause, "connection failed")
