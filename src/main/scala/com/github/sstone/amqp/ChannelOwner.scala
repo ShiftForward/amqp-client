@@ -176,7 +176,7 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
   }
 
   def onChannel(channel: Channel, forwarder: ActorRef): Unit = {
-    channelParams.map(p => channel.basicQos(p.qos, p.global))
+    channelParams.foreach(p => channel.basicQos(p.qos, p.global))
   }
 
   def receive = disconnected
@@ -187,9 +187,9 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
       forwarder ! AddShutdownListener(self)
       forwarder ! AddReturnListener(self)
       onChannel(channel, forwarder)
-      requestLog.map(r => self forward r)
+      requestLog.foreach(r => self forward r)
       log.info(s"got channel $channel")
-      statusListeners.map(a => a ! Connected)
+      statusListeners.foreach(_ ! Connected)
       context.become(connected(channel, forwarder))
     }
     case Record(request: Request) => {
@@ -218,8 +218,11 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
     case Shutdown(cause) if !cause.isInitiatedByApplication => {
       log.error(cause, "shutdown")
       context.stop(forwarder)
-      context.parent ! ConnectionOwner.CreateChannel
-      statusListeners.map(a => a ! Disconnected)
+      // If the ConnectionOwner is sending us the shutdown signal, then a new channel will be created when it tries to
+      // reconnect. There's no need to explicitly ask for one.
+      if (sender != context.parent)
+        context.parent ! ConnectionOwner.CreateChannel
+      statusListeners.foreach(_ ! Disconnected)
       context.become(disconnected)
     }
   }
