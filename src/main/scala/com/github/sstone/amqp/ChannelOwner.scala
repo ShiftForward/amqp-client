@@ -218,9 +218,9 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
     case Shutdown(cause) if !cause.isInitiatedByApplication => {
       log.error(cause, "shutdown")
       context.stop(forwarder)
-      // If the ConnectionOwner is sending us the shutdown signal, then a new channel will be created when it tries to
-      // reconnect. There's no need to explicitly ask for one.
-      if (sender != context.parent)
+      // If we get a connection closed, either via the `ConnectionOwner` or directly through the channel, we don't need
+      // to request a new channel, since a new one will be created when the `ConnectionOwner` tries to reconnect.
+      if (!cause.isHardError)
         context.parent ! ConnectionOwner.CreateChannel
       statusListeners.foreach(_ ! Disconnected)
       context.become(disconnected)
