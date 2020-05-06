@@ -235,7 +235,6 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
       if (!cause.isHardError)
         context.parent ! ConnectionOwner.CreateChannel
       statusListeners.foreach(_ ! Disconnected)
-      log.info("Becoming disconnected")
       context.become(disconnected)
     }
   }
