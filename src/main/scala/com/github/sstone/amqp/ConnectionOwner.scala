@@ -141,7 +141,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
         case Success(conn) => {
           val channelAssignment = context.children.map(_ -> Try(conn.createChannel()))
           // Only consider ourselves connected if we can create a channel for all of our children.
-          if (channelAssignment.forall(_._2.isSuccess)) {
+          if (channelAssignment.forall(_._2.fold(_ => false, _.isOpen))) {
             log.info(s"connected to ${toRedactedUri(connFactory)}")
             statusListeners.foreach(_ ! Connected)
             connection = Some(conn)
@@ -149,8 +149,8 @@ class ConnectionOwner(connFactory: ConnectionFactory,
             channelAssignment.foreach { case (children, channel) => children ! channel.get }
             context.become(connected(conn))
           } else {
-            channelAssignment.foreach(_._2.map(_.close()))
-            conn.close()
+            channelAssignment.foreach(_._2.foreach(channel => Try(channel.close())))
+            Try(conn.close())
           }
         }
         case Failure(cause) => {
