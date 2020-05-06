@@ -141,7 +141,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
         case Success(conn) => {
           val channelAssignment = context.children.map(_ -> Try(conn.createChannel()))
           // Only consider ourselves connected if we can create a channel for all of our children.
-          if (channelAssignment.forall(_._2.fold(_ => false, _.isOpen))) {
+          if (channelAssignment.forall(_._2.map(_.isOpen).getOrElse(false))) {
             log.info(s"connected to ${toRedactedUri(connFactory)}")
             statusListeners.foreach(_ ! Connected)
             connection = Some(conn)
