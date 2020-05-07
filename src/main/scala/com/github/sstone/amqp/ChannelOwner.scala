@@ -176,50 +176,64 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
   }
 
   def onChannel(channel: Channel, forwarder: ActorRef): Unit = {
-    channelParams.map(p => channel.basicQos(p.qos, p.global))
+    channelParams.foreach(p => channel.basicQos(p.qos, p.global))
   }
 
   def receive = disconnected
 
-  def disconnected: Receive = LoggingReceive {
-    case channel: Channel => {
-      val forwarder = context.actorOf(Props(new Forwarder(channel)), name = "forwarder-" + UUID.randomUUID.toString)
-      forwarder ! AddShutdownListener(self)
-      forwarder ! AddReturnListener(self)
-      onChannel(channel, forwarder)
-      requestLog.map(r => self forward r)
-      log.info(s"got channel $channel")
-      statusListeners.map(a => a ! Connected)
-      context.become(connected(channel, forwarder))
+  def newChannel(channel: Channel, previousForwarder: Option[ActorRef]) = {
+    log.info(s"got channel $channel")
+    previousForwarder.foreach { forwarder =>
+      context.stop(forwarder)
+      statusListeners.foreach(_ ! Disconnected)
     }
-    case Record(request: Request) => {
-      requestLog :+= request
+    val forwarder = context.actorOf(Props(new Forwarder(channel)), name = "forwarder-" + UUID.randomUUID.toString)
+    forwarder ! AddShutdownListener(self)
+    forwarder ! AddReturnListener(self)
+    Try(onChannel(channel, forwarder)) match {
+      case Success(_) =>
+        requestLog.foreach(r => self forward r)
+        statusListeners.foreach(_ ! Connected)
+        context.become(connected(channel, forwarder))
+      case Failure(exception) =>
+        log.error(exception, "onChannel")
+        context.stop(forwarder)
+        context.parent ! ConnectionOwner.CreateChannel
+        context.become(disconnected)
     }
-    case AddStatusListener(actor) => addStatusListener(actor)
+  }
 
-    case request: Request => {
+  def disconnected: Receive = LoggingReceive {
+    case channel: Channel =>
+      newChannel(channel, None)
+    case Record(request: Request) =>
+      requestLog :+= request
+    case AddStatusListener(actor) =>
+      addStatusListener(actor)
+    case request: Request =>
       sender ! NotConnectedError(request)
-    }
   }
 
   def connected(channel: Channel, forwarder: ActorRef): Receive = LoggingReceive {
     case Amqp.Ok(_, _) => ()
-    case Record(request: Request) => {
+    case Record(request: Request) =>
       requestLog :+= request
       self forward request
-    }
-    case AddStatusListener(listener) => {
+    case AddStatusListener(listener) =>
       addStatusListener(listener)
       listener ! Connected
-    }
-    case request: Request => {
+    case request: Request =>
       forwarder forward request
-    }
+    case c: Channel =>
+      newChannel(c, Some(forwarder))
     case Shutdown(cause) if !cause.isInitiatedByApplication => {
       log.error(cause, "shutdown")
       context.stop(forwarder)
-      context.parent ! ConnectionOwner.CreateChannel
-      statusListeners.map(a => a ! Disconnected)
+      // If we get a connection closed, either via the `ConnectionOwner` or directly through the channel, we don't need
+      // to request a new channel, since a new one will be created when the `ConnectionOwner` tries to reconnect.
+      if (!cause.isHardError)
+        context.parent ! ConnectionOwner.CreateChannel
+      statusListeners.foreach(_ ! Disconnected)
       context.become(disconnected)
     }
   }

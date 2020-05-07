@@ -122,8 +122,8 @@ class ConnectionOwner(connFactory: ConnectionFactory,
     conn.addShutdownListener(new ShutdownListener {
       def shutdownCompleted(cause: ShutdownSignalException): Unit = {
         self ! Shutdown(cause)
-        statusListeners.map(a => a ! Disconnected)
-       }
+        statusListeners.foreach(a => a ! Disconnected)
+      }
     })
     conn
   }
@@ -139,11 +139,20 @@ class ConnectionOwner(connFactory: ConnectionFactory,
       log.debug(s"trying to connect ${toRedactedUri(connFactory)}")
       Try(createConnection) match {
         case Success(conn) => {
-          log.info(s"connected to ${toRedactedUri(connFactory)}")
-          statusListeners.map(a => a ! Connected)
-          connection = Some(conn)
-          context.children.foreach(_ ! conn.createChannel())
-          context.become(connected(conn))
+          val channelAssignment = context.children.map(_ -> Try(conn.createChannel()))
+          // Only consider ourselves connected if we can create a channel for all of our children.
+          if (channelAssignment.forall(_._2.map(_.isOpen).getOrElse(false))) {
+            log.info(s"connected to ${toRedactedUri(connFactory)}")
+            statusListeners.foreach(_ ! Connected)
+            connection = Some(conn)
+            // We know all Trys were successful, so it's safe to .get here.
+            channelAssignment.foreach { case (children, channel) => children ! channel.get }
+            context.become(connected(conn))
+          } else {
+            log.error("failed to open channels for all children")
+            channelAssignment.foreach(_._2.foreach(channel => Try(channel.close())))
+            Try(conn.close())
+          }
         }
         case Failure(cause) => {
           log.error(cause, "connection failed")
@@ -178,11 +187,11 @@ class ConnectionOwner(connFactory: ConnectionFactory,
       context.stop(self)
     }
     case CreateChannel => Try(conn.createChannel()) match {
-      case Success(channel) => sender ! channel
-      case Failure(cause) => {
+      case Success(channel) =>
+        sender ! channel
+      case Failure(cause) =>
         log.error(cause, "cannot create channel")
         context.become(disconnected)
-      }
     }
     case AddStatusListener(listener) => {
       addStatusListener(listener)
