@@ -193,8 +193,7 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
     Try(onChannel(channel, forwarder)) match {
       case Success(_) =>
         requestLog.foreach(r => self forward r)
-        if (previousForwarder.isEmpty)
-          statusListeners.foreach(_ ! Connected)
+        statusListeners.foreach(_ ! Connected)
         context.become(connected(channel, forwarder))
       case Failure(exception) =>
         log.error(exception, "onChannel")
