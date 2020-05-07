@@ -149,6 +149,7 @@ class ConnectionOwner(connFactory: ConnectionFactory,
             channelAssignment.foreach { case (children, channel) => children ! channel.get }
             context.become(connected(conn))
           } else {
+            log.error("failed to open channels for all children")
             channelAssignment.foreach(_._2.foreach(channel => Try(channel.close())))
             Try(conn.close())
           }
