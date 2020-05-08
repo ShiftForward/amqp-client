@@ -184,7 +184,7 @@ class ChannelOwner(init: Seq[Request] = Seq.empty[Request], channelParams: Optio
   def newChannel(channel: Channel, previousForwarder: Option[ActorRef]) = {
     log.info(s"got channel $channel")
     previousForwarder.foreach { forwarder =>
-      context.stop(forwarder)
+      forwarder ! PoisonPill
       statusListeners.foreach(_ ! Disconnected)
     }
     val forwarder = context.actorOf(Props(new Forwarder(channel)), name = "forwarder-" + UUID.randomUUID.toString)
