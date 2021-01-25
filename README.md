@@ -1,3 +1,5 @@
+**WARNING**: This fork is no longer being actively maintained.
+
 # Simple Scala AMQP client
 
 Simple [AMQP](http://www.amqp.org/) client in Scala/Akka based on the [RabbitMQ](http://www.rabbitmq.com/) java client.
